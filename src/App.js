@@ -8,6 +8,7 @@ import {
   Alert,
   Flex,
   Switch,
+  Loader,
 } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useState } from "react";
@@ -21,10 +22,16 @@ function App() {
   const [data, setData] = useState(null);
   const [errorText, setErrorText] = useState(null);
   const [sendAsXML, setSendAsXML] = useState(false);
+  const [authors, setAuthors] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const host = "http://172.20.10.3:8080";
 
   const onClickLoadList = () => {
+    setLoading(true);
+    setErrorText(null);
     if (sendAsXML) {
-      fetch(`http://localhost:8080/persons`, {
+      fetch(`${host}/persons`, {
         headers: {
           Accept: "application/xml",
           ContentType: "application/xml",
@@ -41,13 +48,16 @@ function App() {
             return obj;
           });
           setData(json);
+          setErrorText(null);
+          setLoading(false);
         })
         .catch((error) => {
           console.log({ error });
+          setLoading(false);
         });
       return;
     }
-    fetch(`http://localhost:8080/persons`)
+    fetch(`${host}/persons`)
       .then((response) => response.json())
       .then((data) => {
         if (data.detail) {
@@ -55,10 +65,32 @@ function App() {
         } else {
           setErrorText(null);
           setData(data);
+          setLoading(false);
         }
       })
       .catch((error) => {
         setErrorText(error);
+        setLoading(false);
+      });
+  };
+
+  const onClickLoadAuthors = () => {
+    setLoading(true);
+    setErrorText(null);
+    fetch(`${host}/authors`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.detail) {
+          setErrorText(data.detail);
+        } else {
+          setErrorText(null);
+          setAuthors(data.authors);
+        }
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.log(error);
+        setLoading(false);
       });
   };
 
@@ -67,8 +99,10 @@ function App() {
       setErrorText("Podaj poprawne ID");
       return;
     }
+    setLoading(false);
+    setErrorText(null);
     if (sendAsXML) {
-      fetch(`http://localhost:8080/persons/${id}`, {
+      fetch(`${host}/persons/${id}`, {
         headers: {
           Accept: "application/xml",
         },
@@ -89,13 +123,15 @@ function App() {
           }, {});
           setData([person]);
           setErrorText(null);
+          setLoading(false);
         })
         .catch((error) => {
           console.log({ error });
+          setLoading(false);
         });
       return;
     }
-    fetch(`http://localhost:8080/persons/${id}`)
+    fetch(`${host}/persons/${id}`)
       .then((response) => response.json())
       .then((data) => {
         if (data.detail) {
@@ -103,15 +139,19 @@ function App() {
         } else {
           setErrorText(null);
           setData([data]);
+          setLoading(false);
         }
       })
       .catch((error) => {
         setErrorText(error);
+        setLoading(false);
       });
   };
 
   const onClickUpdate = () => {
-    fetch(`http://localhost:8080/persons/${id}`, {
+    setLoading(true);
+    setErrorText(null);
+    fetch(`${host}/persons/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": sendAsXML ? "application/xml" : "application/json",
@@ -134,9 +174,11 @@ function App() {
           setErrorText(null);
           onClickLoadList();
         }
+        setLoading(false);
       })
       .catch((error) => {
         console.log(error);
+        setLoading(false);
       });
   };
 
@@ -145,7 +187,9 @@ function App() {
       setErrorText("Podaj poprawne ID");
       return;
     }
-    fetch(`http://localhost:8080/persons/${id}`, {
+    setLoading(true);
+    setErrorText(null);
+    fetch(`${host}/persons/${id}`, {
       method: "DELETE",
     })
       .then((response) => response.json())
@@ -156,14 +200,18 @@ function App() {
           setErrorText(null);
           onClickLoadList();
         }
+        setLoading(false);
       })
       .catch((error) => {
         setErrorText(error);
+        setLoading(false);
       });
   };
 
   const onClickAdd = () => {
-    fetch(`http://localhost:8080/persons`, {
+    setLoading(true);
+    setErrorText(null);
+    fetch(`${host}/persons`, {
       method: "POST",
       headers: {
         "Content-Type": sendAsXML ? "application/xml" : "application/json",
@@ -186,16 +234,19 @@ function App() {
           setErrorText(null);
           onClickLoadList();
         }
+        setLoading(false);
       })
       .catch((error) => {
+        console.log({ error });
         setErrorText(error);
+        setLoading(false);
       });
   };
 
   return (
     <Container style={{ padding: "50px" }}>
       <Flex gap="lg" direction="column">
-        <Flex justify="space-between">
+        <Flex justify="space-between" align="flex-end">
           <NumberInput
             value={id}
             onChange={(value) => setID(value)}
@@ -222,10 +273,23 @@ function App() {
             label="Email"
             placeholder="Podaj email"
           />
+          <Button color="pink" onClick={onClickLoadAuthors}>
+            Autorzy
+          </Button>
         </Flex>
 
+        {authors && (
+          <Alert
+            icon={<IconAlertCircle size="1rem" />}
+            title="Autorzy!"
+            color="grape"
+          >
+            {authors}
+          </Alert>
+        )}
+
         <Group position="apart">
-          <Button onClick={onClickLoadList}>Wczytaj całą listę</Button>
+          <Button onClick={onClickLoadList}>Wczytaj listę</Button>
           <Button onClick={onClickLoad} disabled={id === ""}>
             Wczytaj pozycję
           </Button>
@@ -250,6 +314,12 @@ function App() {
             size="xl"
           />
         </Group>
+
+        {loading && (
+          <Container>
+            <Loader />
+          </Container>
+        )}
 
         {errorText && (
           <Alert
